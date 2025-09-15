@@ -2,9 +2,10 @@
 {
     public class RabbitMqSettings
     {
-        public string Host { get; set; }
-        public string QueueName { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
+        public string Uri { get; set; } = string.Empty;
+        public string QueueName { get; set; } = "postino_email_queue";
+        public bool Durable { get; set; } = true;
+        public bool Exclusive { get; set; } = false;
+        public bool AutoDelete { get; set; } = false;
     }
 }

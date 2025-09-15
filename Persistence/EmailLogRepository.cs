@@ -1,9 +1,10 @@
-﻿using Npgsql;
+﻿using AgendaSalud.Postino.EmailService.Persistence.Interface;
+using Npgsql;
 using System.Text.Json;
 
 namespace Postino.EmailService.Persistence
 {
-    public class EmailLogRepository
+    public class EmailLogRepository: IEmailLogRepository
     {
         protected readonly string _connectionString;
        public EmailLogRepository(IConfiguration configuration) 

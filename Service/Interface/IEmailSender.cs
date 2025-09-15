@@ -4,10 +4,8 @@ namespace AgendaSalud.Postino.EmailService.Service.Interface
 {
     public interface IEmailSender
     {
-        public interface IEmailSender
-        {
-            Task SendAsync(EmailRequestDto request);
-        }
+        Task<bool> SendAsync(EmailRequestDto request);
 
+      
     }
 }

@@ -19,7 +19,7 @@ namespace AgendaSalud.Postino.EmailService.Controllers
         public async Task<IActionResult> SendEmail([FromBody] EmailRequestDto dto)
         {
             await _queueProducer.EnqueueAsync(dto);
-            return Accepted(new { message = "Email encolado correctamente", dto.CorrelationId });
+            return Accepted(new { message = "Email encolado correctamente", dto.MessageId });
         }
     }
 }

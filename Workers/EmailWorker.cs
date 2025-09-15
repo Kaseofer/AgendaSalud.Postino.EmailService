@@ -1,56 +1,81 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using AgendaSalud.Postino.EmailService.Config;
 using AgendaSalud.Postino.EmailService.Models;
+using AgendaSalud.Postino.EmailService.Service.Interface;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using AgendaSalud.Postino.EmailService.Service.Interface;
 
 namespace AgendaSalud.Postino.EmailService.Workers
 {
     public class EmailWorker : BackgroundService
     {
-        private readonly IConnection _connection;
-        private readonly IEmailSender _emailSender;
+        private  IConnection _connection;
+        private readonly IServiceProvider _serviceProvider;
         private IChannel _channel;
 
-        public EmailWorker(IConnection connection, IEmailSender emailSender)
+        private readonly ILogger<EmailWorker> _logger;
+        private readonly RabbitMqSettings _settings;
+
+        public EmailWorker(ILogger<EmailWorker> logger, IServiceProvider serviceProvider, IOptions<RabbitMqSettings> options)
         {
-            _connection = connection;
-            _emailSender = emailSender;
+
+            _serviceProvider = serviceProvider;
+            _logger = logger;
+            _settings = options.Value;
+
+            
+
+
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _channel = await _connection.CreateChannelAsync();
+            var factory = new ConnectionFactory()
+            {
+                Uri = new Uri(_settings.Uri)
+            };
+
+            _connection = await factory.CreateConnectionAsync(stoppingToken);
+
+            _channel = await _connection.CreateChannelAsync(null,stoppingToken);
+
 
             await _channel.QueueDeclareAsync(
-                queue: "postino_email_queue",
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
+                queue: _settings.QueueName,
+                durable: _settings.Durable,
+                exclusive: _settings.Exclusive,
+                autoDelete: _settings.AutoDelete,
                 arguments: null
             );
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
-            consumer.ReceivedAsync += async (_, ea) =>
+            consumer.ReceivedAsync += async (model, ea) =>
             {
                 if (stoppingToken.IsCancellationRequested)
                     return;
 
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
                 try
                 {
-                    var body = ea.Body.ToArray();
-                    var message = Encoding.UTF8.GetString(body);
                     var request = JsonSerializer.Deserialize<EmailRequestDto>(message);
-                    var messageId = ea.BasicProperties?.MessageId ?? Guid.NewGuid().ToString();
+
+                    request!.MessageId = ea.BasicProperties?.MessageId ?? Guid.NewGuid().ToString();
 
                     if (request != null)
                     {
-                        Console.WriteLine($"📥 Processing email to {request.To} with MessageId: {messageId}");
-                        await _emailSender.SendAsync(request);
+                        Console.WriteLine($"📥 Processing email to {request.To} with MessageId: {request.MessageId}");
+
+                        using var scope = _serviceProvider.CreateScope();
+                        var emailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+                        await emailSender.SendAsync(request);
                     }
 
                     await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
@@ -65,7 +90,7 @@ namespace AgendaSalud.Postino.EmailService.Workers
 
 
             await _channel.BasicConsumeAsync(
-                queue: "postino_email_queue",
+                queue: _settings.QueueName,
                 autoAck: false,
                 consumer: consumer
             );

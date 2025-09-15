@@ -1,5 +1,6 @@
 ﻿using AgendaSalud.Postino.EmailService.Config;
 using AgendaSalud.Postino.EmailService.Models;
+using AgendaSalud.Postino.EmailService.Persistence.Interface;
 using AgendaSalud.Postino.EmailService.Service.Interface;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -11,15 +12,18 @@ namespace AgendaSalud.Postino.EmailService.Service
     public class EmailSender : IEmailSender
     {
         protected readonly EmailSettings _settings;
+        protected readonly IEmailLogRepository _emailRepository;
 
-        public EmailSender(IOptions<EmailSettings> options)
+        public EmailSender(IOptions<EmailSettings> options,IEmailLogRepository repo)
         {
             _settings = options.Value;
+            _emailRepository = repo;
         }
-        public async Task SendAsync(EmailRequestDto request)
+        public async Task<bool> SendAsync(EmailRequestDto request)
         {
-            {
+            try
 
+            {
                 var client = new SmtpClient(_settings.SmtpServer)
                 {
                     Port = _settings.SmtpPort,
@@ -27,26 +31,37 @@ namespace AgendaSalud.Postino.EmailService.Service
                     EnableSsl = _settings.EnableSsl
                 };
 
+
                 var mail = new MailMessage
                 {
                     From = new MailAddress(_settings.SenderEmail),
-                    Subject = "📬 Prueba desde consola",
-                    Body = File.ReadAllText("plantilla.html"),
+                    Subject = request.Subject,
+                    Body = _settings.IsBodyHtml==true ? request.HtmlBody: request.TextBody,
                     IsBodyHtml = _settings.IsBodyHtml
                 };
 
-                mail.To.Add("fernando.garin.tejedor@gmail.com"); // Cambiá esto por tu correo de prueba
+                mail.To.Add(request.To); // Cambiá esto por tu correo de prueba
 
                 try
                 {
                     await client.SendMailAsync(mail);
                     Console.WriteLine("✅ Correo enviado correctamente.");
+
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Exitoso", mail);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Error al enviar: {ex.Message}");
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido", mail);
                 }
+
+                return true;
             }
-        }
+            catch (Exception)
+            {
+
+                return false;
+            }
+}
     }
 }
