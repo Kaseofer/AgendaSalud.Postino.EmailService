@@ -47,12 +47,12 @@ namespace AgendaSalud.Postino.EmailService.Service
                     await client.SendMailAsync(mail);
                     Console.WriteLine("✅ Correo enviado correctamente.");
 
-                    await _emailRepository.LogAsync(request.MessageId, "Envio Exitoso", mail);
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Exitoso",request.To, request);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Error al enviar: {ex.Message}");
-                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido", mail);
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido",request.To, request);
                 }
 
                 return true;

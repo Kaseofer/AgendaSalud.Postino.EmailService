@@ -2,6 +2,6 @@
 {
     public interface IEmailLogRepository
     {
-        Task LogAsync(string entityId, string eventType, object payload);
+        Task LogAsync(string entityId, string eventType,string to, object payload);
     }
 }
