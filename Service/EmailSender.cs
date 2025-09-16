@@ -69,7 +69,8 @@ namespace AgendaSalud.Postino.EmailService.Service
                 var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true // Para mejor lectura en logs
+                    WriteIndented = true, // Para mejor lectura en logs
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping // No escapar caracteres especiales
                 });
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
