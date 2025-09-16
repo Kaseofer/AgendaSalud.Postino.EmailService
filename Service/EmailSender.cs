@@ -55,13 +55,13 @@ namespace AgendaSalud.Postino.EmailService.Service
                     return false;
                 }
 
-                // Payload para la API de Maileroo - USANDO CAMPOS DEL DTO
+                // Payload para la API de Maileroo - DOMINIO CORRECTO
                 var payload = new
                 {
                     to = request.To,
-                    from = request.From ?? _settings.SenderEmail, // Usar From del DTO si existe
+                    from = _settings.SenderEmail, // USAR SIEMPRE el email verificado de Maileroo
                     subject = request.Subject ?? "Sin asunto",
-                    html = request.HtmlBody, // Usar HtmlBody correctamente
+                    html = request.HtmlBody,
                     text = request.TextBody ?? request.HtmlBody ?? "Contenido no disponible"
                 };
 
@@ -80,7 +80,7 @@ namespace AgendaSalud.Postino.EmailService.Service
 
                 // LOGGING DETALLADO
                 Console.WriteLine($"🔄 Enviando email via API...");
-                Console.WriteLine($"📧 Endpoint: https://api.maileroo.com/send");
+                Console.WriteLine($"📧 Endpoint: https://smtp.maileroo.com/send");
                 Console.WriteLine($"🔐 De: {_settings.SenderEmail}");
                 Console.WriteLine($"📬 Para: {request.To}");
                 Console.WriteLine($"📋 Subject final: '{payload.subject}'");
@@ -88,8 +88,8 @@ namespace AgendaSalud.Postino.EmailService.Service
                 Console.WriteLine($"📄 Payload completo:");
                 Console.WriteLine(json);
 
-                // Enviar via API - ENDPOINT ALTERNATIVO
-                var response = await _httpClient.PostAsync("https://api.maileroo.com/send", content);
+                // Enviar via API - ENDPOINT ORIGINAL
+                var response = await _httpClient.PostAsync("https://smtp.maileroo.com/send", content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 Console.WriteLine($"📋 HTTP Status: {response.StatusCode}");
