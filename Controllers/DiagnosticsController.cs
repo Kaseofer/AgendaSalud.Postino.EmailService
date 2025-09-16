@@ -20,16 +20,30 @@ public class DiagnosticsController : ControllerBase
         {
             To = "kaseofer@gmail.com", // Cambiá esto por tu correo real
             Subject = "🔧 Test SMTP desde Railway",
-            TextBody = "Este es un correo de prueba para validar la conexión SMTP.",
-            HtmlBody = "<p><strong>Este es un correo de prueba</strong> para validar la conexión SMTP.</p>",
+            TextBody = "Este es un correo de prueba.",
+            HtmlBody = "<p><strong>Este es un correo de prueba</strong></p>",
             MessageId = Guid.NewGuid().ToString()
         };
 
-        var result = await _emailSender.SendAsync(testEmail);
+        try
+        {
+            var result = await _emailSender.SendAsync(testEmail);
 
-        if (result)
-            return Ok("✅ SMTP operativo. Correo enviado correctamente.");
-        else
-            return StatusCode(500, "❌ Fallo en el envío. Revisá configuración SMTP o logs.");
+            if (result)
+                return Ok("✅ SMTP operativo. Correo enviado correctamente.");
+            else
+                return StatusCode(500, "❌ Fallo en el envío. Verificá configuración SMTP.");
+        }
+        catch (Exception ex)
+        {
+            var errorMessage = $"❌ Error interno: {ex.Message}";
+            if (ex.InnerException != null)
+            {
+                errorMessage += $" | InnerException: {ex.InnerException.Message}";
+            }
+
+            Console.WriteLine(errorMessage);
+            return StatusCode(500, errorMessage);
+        }
     }
 }
