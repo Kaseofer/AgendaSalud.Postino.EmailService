@@ -9,7 +9,6 @@ using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient();
 
 
 builder.Services.Configure<RabbitMqSettings>(builder.Configuration.GetSection("RabbitMqSettings"));
@@ -26,8 +25,11 @@ builder.Services.AddSingleton<IConnection>(sp =>
 
 var connString = Environment.GetEnvironmentVariable("POSTINO_AUDIT_URL");
 
+builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<EmailSender>();
 builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
+
 builder.Services.AddSingleton<IEmailQueueProducer, RabbitMqEmailProducer>();
 
 

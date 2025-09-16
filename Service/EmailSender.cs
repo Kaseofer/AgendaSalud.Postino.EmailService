@@ -49,7 +49,7 @@ namespace AgendaSalud.Postino.EmailService.Service
 
                 // Limpiar headers previos y agregar autenticación
                 _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("X-API-Token", _settings.SenderPassword);
+                _httpClient.DefaultRequestHeaders.Add("X-API-Key", _settings.SenderPassword);
 
                 // LOGGING DETALLADO
                 Console.WriteLine($"🔄 Enviando email via API...");
