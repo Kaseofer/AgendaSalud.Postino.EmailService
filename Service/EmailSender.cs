@@ -5,6 +5,7 @@ using AgendaSalud.Postino.EmailService.Service.Interface;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
+using System.Text.Json;
 
 namespace AgendaSalud.Postino.EmailService.Service
 {
@@ -51,8 +52,9 @@ namespace AgendaSalud.Postino.EmailService.Service
                 }
                 catch (Exception ex)
                 {
+                    request.TextBody = JsonSerializer.Serialize(ex);
                     Console.WriteLine($"❌ Error al enviar: {ex.Message}");
-                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido",request.To, ex.Message);
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido",request.To, request);
                 }
 
                 return true;
