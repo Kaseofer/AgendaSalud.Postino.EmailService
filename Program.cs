@@ -96,8 +96,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
             }
         });
 
-// Endpoint simple para Railway
-app.MapGet("/health/live", () => "OK");
+
 
 app.UseSwagger();
 app.UseSwaggerUI();
