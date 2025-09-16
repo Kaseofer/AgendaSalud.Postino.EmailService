@@ -54,6 +54,7 @@ namespace AgendaSalud.Postino.EmailService.Workers
                 arguments: null
             );
 
+            //Consumiendo la Cola RabbitMQ
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += async (model, ea) =>
             {
