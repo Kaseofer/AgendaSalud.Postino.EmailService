@@ -21,11 +21,37 @@ namespace AgendaSalud.Postino.EmailService.Service
             _httpClient = httpClient;
         }
 
-        // VERSIÓN CON MAILEROO API (sin SMTP)
+        // VERSIÓN CON MAILEROO API (sin SMTP) + DEBUG Y VALIDACIONES
         public async Task<bool> SendAsync(EmailRequestDto request)
         {
             try
             {
+                // DEBUG: Verificar qué datos están llegando
+                Console.WriteLine($"📝 Subject recibido: '{request.Subject}'");
+                Console.WriteLine($"📝 To recibido: '{request.To}'");
+                Console.WriteLine($"📝 HtmlBody: '{request.HtmlBody}'");
+                Console.WriteLine($"📝 TextBody: '{request.TextBody}'");
+                Console.WriteLine($"📝 MessageId: '{request.MessageId}'");
+
+                // VALIDACIONES
+                if (string.IsNullOrEmpty(request.Subject))
+                {
+                    Console.WriteLine("❌ Subject está vacío, usando subject por defecto");
+                    request.Subject = "Notificación AgendaSalud";
+                }
+
+                if (string.IsNullOrEmpty(request.To))
+                {
+                    Console.WriteLine("❌ Destinatario está vacío");
+                    return false;
+                }
+
+                if (string.IsNullOrEmpty(request.HtmlBody) && string.IsNullOrEmpty(request.TextBody))
+                {
+                    Console.WriteLine("❌ Tanto HtmlBody como TextBody están vacíos");
+                    return false;
+                }
+
                 // Payload para la API de Maileroo
                 var payload = new
                 {
@@ -35,14 +61,15 @@ namespace AgendaSalud.Postino.EmailService.Service
                         email = _settings.SenderEmail,
                         name = "AgendaSalud Notificaciones"
                     },
-                    subject = request.Subject,
-                    html = _settings.IsBodyHtml ? request.HtmlBody : request.TextBody,
-                    text = request.TextBody ?? request.HtmlBody
+                    subject = request.Subject ?? "Sin asunto", // Fallback si es null
+                    html = _settings.IsBodyHtml ? (request.HtmlBody ?? request.TextBody) : (request.TextBody ?? request.HtmlBody),
+                    text = request.TextBody ?? request.HtmlBody ?? "Contenido no disponible"
                 };
 
                 var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
                 {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true // Para mejor lectura en logs
                 });
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -56,14 +83,17 @@ namespace AgendaSalud.Postino.EmailService.Service
                 Console.WriteLine($"📧 Endpoint: https://smtp.maileroo.com/send");
                 Console.WriteLine($"🔐 De: {_settings.SenderEmail}");
                 Console.WriteLine($"📬 Para: {request.To}");
-                Console.WriteLine($"📄 Payload: {json}");
+                Console.WriteLine($"📋 Subject final: '{payload.subject}'");
+                Console.WriteLine($"🔑 API Key (primeros 8 chars): {_settings.SenderPassword.Substring(0, 8)}...");
+                Console.WriteLine($"📄 Payload completo:");
+                Console.WriteLine(json);
 
                 // Enviar via API
                 var response = await _httpClient.PostAsync("https://smtp.maileroo.com/send", content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
-                Console.WriteLine($"📋 Status: {response.StatusCode}");
-                Console.WriteLine($"📄 Response: {responseBody}");
+                Console.WriteLine($"📋 HTTP Status: {response.StatusCode}");
+                Console.WriteLine($"📄 Response Body: {responseBody}");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -75,7 +105,9 @@ namespace AgendaSalud.Postino.EmailService.Service
                         Method = "API",
                         StatusCode = response.StatusCode.ToString(),
                         Response = responseBody,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow,
+                        Subject = request.Subject,
+                        Recipient = request.To
                     };
 
                     await _emailRepository.LogAsync(request.MessageId, "Envio Exitoso (API)", request.To, successInfo);
@@ -83,7 +115,7 @@ namespace AgendaSalud.Postino.EmailService.Service
                 }
                 else
                 {
-                    Console.WriteLine($"❌ Error API: {response.StatusCode}");
+                    Console.WriteLine($"❌ Error API: {response.StatusCode} - {response.ReasonPhrase}");
 
                     var errorInfo = new
                     {
@@ -91,7 +123,9 @@ namespace AgendaSalud.Postino.EmailService.Service
                         StatusCode = response.StatusCode.ToString(),
                         Response = responseBody,
                         ReasonPhrase = response.ReasonPhrase,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow,
+                        Subject = request.Subject,
+                        Recipient = request.To
                     };
 
                     await _emailRepository.LogAsync(request.MessageId, $"Error API: {response.StatusCode} - {response.ReasonPhrase}", request.To, errorInfo);
