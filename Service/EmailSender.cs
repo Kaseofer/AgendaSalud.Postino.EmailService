@@ -55,14 +55,25 @@ namespace AgendaSalud.Postino.EmailService.Service
                     return false;
                 }
 
-                // Payload para la API de Maileroo - DOMINIO CORRECTO
+                // Payload CORRECTO según documentación oficial de Maileroo
                 var payload = new
                 {
-                    to = request.To,
-                    from = _settings.SenderEmail, // USAR SIEMPRE el email verificado de Maileroo
+                    from = new
+                    {
+                        address = _settings.SenderEmail,
+                        display_name = "AgendaSalud Notificaciones"
+                    },
+                    to = new[]
+                    {
+                        new
+                        {
+                            address = request.To
+                        }
+                    },
                     subject = request.Subject ?? "Sin asunto",
                     html = request.HtmlBody,
-                    text = request.TextBody ?? request.HtmlBody ?? "Contenido no disponible"
+                    plain = request.TextBody ?? request.HtmlBody ?? "Contenido no disponible",
+                    tracking = true
                 };
 
                 var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
@@ -80,7 +91,7 @@ namespace AgendaSalud.Postino.EmailService.Service
 
                 // LOGGING DETALLADO
                 Console.WriteLine($"🔄 Enviando email via API...");
-                Console.WriteLine($"📧 Endpoint: https://smtp.maileroo.com/send");
+                Console.WriteLine($"📧 Endpoint: https://smtp.maileroo.com/api/v2/emails");
                 Console.WriteLine($"🔐 De: {_settings.SenderEmail}");
                 Console.WriteLine($"📬 Para: {request.To}");
                 Console.WriteLine($"📋 Subject final: '{payload.subject}'");
@@ -88,8 +99,8 @@ namespace AgendaSalud.Postino.EmailService.Service
                 Console.WriteLine($"📄 Payload completo:");
                 Console.WriteLine(json);
 
-                // Enviar via API - ENDPOINT ORIGINAL
-                var response = await _httpClient.PostAsync("https://smtp.maileroo.com/send", content);
+                // Enviar via API - ENDPOINT CORRECTO
+                var response = await _httpClient.PostAsync("https://smtp.maileroo.com/api/v2/emails", content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 Console.WriteLine($"📋 HTTP Status: {response.StatusCode}");
