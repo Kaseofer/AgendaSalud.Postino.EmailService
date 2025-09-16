@@ -52,7 +52,7 @@ namespace AgendaSalud.Postino.EmailService.Service
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Error al enviar: {ex.Message}");
-                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido",request.To, request);
+                    await _emailRepository.LogAsync(request.MessageId, "Envio Fallido",request.To, ex);
                 }
 
                 return true;
