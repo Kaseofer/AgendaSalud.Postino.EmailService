@@ -1,4 +1,6 @@
-﻿namespace AgendaSalud.Postino.EmailService.Persistence.Interface
+﻿using System.Runtime.InteropServices;
+
+namespace AgendaSalud.Postino.EmailService.Persistence.Interface
 {
     public interface IEmailLogRepository
     {

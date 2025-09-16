@@ -36,15 +36,9 @@ namespace AgendaSalud.Postino.EmailService.Workers
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var factory = new ConnectionFactory()
-            {
-                Uri = new Uri(_settings.Uri)
-            };
-
+            var factory = new ConnectionFactory { Uri = new Uri(_settings.Uri) };
             _connection = await factory.CreateConnectionAsync(stoppingToken);
-
-            _channel = await _connection.CreateChannelAsync(null,stoppingToken);
-
+            _channel = await _connection.CreateChannelAsync(null, stoppingToken);
 
             await _channel.QueueDeclareAsync(
                 queue: _settings.QueueName,
@@ -54,41 +48,8 @@ namespace AgendaSalud.Postino.EmailService.Workers
                 arguments: null
             );
 
-            //Consumiendo la Cola RabbitMQ
             var consumer = new AsyncEventingBasicConsumer(_channel);
-            consumer.ReceivedAsync += async (model, ea) =>
-            {
-                if (stoppingToken.IsCancellationRequested)
-                    return;
-
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
-                try
-                {
-                    var request = JsonSerializer.Deserialize<EmailRequestDto>(message);
-
-                    request!.MessageId = ea.BasicProperties?.MessageId ?? Guid.NewGuid().ToString();
-
-                    if (request != null)
-                    {
-                        Console.WriteLine($"📥 Processing email to {request.To} with MessageId: {request.MessageId}");
-
-                        using var scope = _serviceProvider.CreateScope();
-                        var emailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
-                        await emailSender.SendAsync(request);
-                    }
-
-                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"❌ Error: {ex.Message}");
-                    var isRecoverable = !(ex is JsonException);
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: isRecoverable);
-                }
-            };
-
+            consumer.ReceivedAsync += async (model, ea) => await HandleMessageAsync(ea, stoppingToken);
 
             await _channel.BasicConsumeAsync(
                 queue: _settings.QueueName,
@@ -97,9 +58,51 @@ namespace AgendaSalud.Postino.EmailService.Workers
             );
 
             while (!stoppingToken.IsCancellationRequested)
+                await Task.Delay(1000, stoppingToken);
+        }
+
+        private async Task HandleMessageAsync(BasicDeliverEventArgs ea, CancellationToken token)
+        {
+            if (token.IsCancellationRequested)
+                return;
+
+            var body = ea.Body.ToArray();
+            var message = Encoding.UTF8.GetString(body);
+
+            if (string.IsNullOrWhiteSpace(message))
             {
-                await Task.Delay(1000, stoppingToken); // Mantiene el worker vivo
+                Console.WriteLine("⚠️ Mensaje vacío. Se descarta.");
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+                return;
+            }
+
+            try
+            {
+                var request = JsonSerializer.Deserialize<EmailRequestDto>(message);
+                request!.MessageId = ea.BasicProperties?.MessageId ?? Guid.NewGuid().ToString();
+
+                if (string.IsNullOrWhiteSpace(request.To))
+                {
+                    Console.WriteLine($"⚠️ Campo 'To' vacío en {request.MessageId}. Se descarta.");
+                    await _channel.BasicNackAsync(ea.DeliveryTag, false, false);
+                    return;
+                }
+
+                using var scope = _serviceProvider.CreateScope();
+                var emailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+
+                Console.WriteLine($"📥 Procesando email a {request.To} con ID: {request.MessageId}");
+                await emailSender.SendAsync(request);
+
+                await _channel.BasicAckAsync(ea.DeliveryTag, false);
+            }
+            catch (Exception ex)
+            {
+                var isRecoverable = !(ex is JsonException);
+                Console.WriteLine($"❌ Error en {ea.BasicProperties?.MessageId}: {ex.Message} | Requeue: {isRecoverable}");
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, requeue: isRecoverable);
             }
         }
+
     }
 }
