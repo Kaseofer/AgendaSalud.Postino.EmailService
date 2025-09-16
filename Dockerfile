@@ -3,14 +3,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copiar csproj y restaurar dependencias
-COPY *.sln .
-COPY AgendaSalud.Postino.EmailService/*.csproj ./AgendaSalud.Postino.EmailService/
-RUN dotnet restore
+COPY AgendaSalud.Postino.EmailService.csproj ./
+RUN dotnet restore AgendaSalud.Postino.EmailService.csproj
 
-# Copiar el resto del código y compilar
+# Copiar todo el código y compilar
 COPY . .
-WORKDIR /src/AgendaSalud.Postino.EmailService
-RUN dotnet publish -c Release -o /app
+RUN dotnet publish AgendaSalud.Postino.EmailService.csproj -c Release -o /app
 
 # Etapa de runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
