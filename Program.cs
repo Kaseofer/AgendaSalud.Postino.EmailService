@@ -21,6 +21,8 @@ builder.Services.AddSingleton<IConnection>(sp =>
 
 });
 
+var connString = Environment.GetEnvironmentVariable("POSTINO_AUDIT_URL");
+
 builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
 builder.Services.AddSingleton<IEmailQueueProducer, RabbitMqEmailProducer>();
@@ -34,10 +36,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
 app.MapControllers();
 app.Run();
