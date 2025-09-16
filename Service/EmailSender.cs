@@ -25,19 +25,20 @@ namespace AgendaSalud.Postino.EmailService.Service
         {
             try
             {
+                // OPCIÓN 1: Probar puerto 465 (SSL directo)
                 using var client = new SmtpClient(_settings.SmtpServer)
                 {
-                    Port = _settings.SmtpPort,
+                    Port = 465, // Cambiar a puerto SSL
                     Credentials = new NetworkCredential(_settings.SenderEmail, _settings.SenderPassword),
-                    EnableSsl = _settings.EnableSsl,
+                    EnableSsl = true,
 
                     // CONFIGURACIONES CRÍTICAS para Railway:
                     DeliveryMethod = SmtpDeliveryMethod.Network,
-                    UseDefaultCredentials = false,  // MUY IMPORTANTE
-                    Timeout = 30000, // 30 segundos
+                    UseDefaultCredentials = false,
+                    Timeout = 60000, // 60 segundos más tiempo
 
-                    // Para debugging en Railway:
-                    DeliveryFormat = SmtpDeliveryFormat.International
+                    // Configuraciones adicionales para problemas de red:
+                    TargetName = "STARTTLS/smtp.maileroo.com"
                 };
 
                 using var mail = new MailMessage
@@ -70,18 +71,33 @@ namespace AgendaSalud.Postino.EmailService.Service
                 Console.WriteLine($"📋 Mensaje: {smtpEx.Message}");
                 Console.WriteLine($"🔍 Inner Exception: {smtpEx.InnerException?.Message}");
 
-                await _emailRepository.LogAsync(request.MessageId, $"Error SMTP: {smtpEx.StatusCode} - {smtpEx.Message}", request.To, smtpEx);
+                // Crear un objeto simple para evitar problemas de serialización
+                var errorInfo = new
+                {
+                    StatusCode = smtpEx.StatusCode.ToString(),
+                    Message = smtpEx.Message,
+                    InnerMessage = smtpEx.InnerException?.Message ?? "N/A"
+                };
+
+                await _emailRepository.LogAsync(request.MessageId, $"Error SMTP: {smtpEx.StatusCode} - {smtpEx.Message}", request.To, errorInfo);
                 return false;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Error general: {ex.Message}");
-                Console.WriteLine($"🔍 Stack Trace: {ex.StackTrace}");
+                Console.WriteLine($"🔍 Tipo: {ex.GetType().Name}");
 
-                await _emailRepository.LogAsync(request.MessageId, "Envio Fallido", request.To, ex);
+                // Objeto simple sin referencias complejas
+                var errorInfo = new
+                {
+                    Type = ex.GetType().Name,
+                    Message = ex.Message,
+                    Source = ex.Source ?? "N/A"
+                };
+
+                await _emailRepository.LogAsync(request.MessageId, "Envio Fallido", request.To, errorInfo);
                 return false;
             }
         }
-
     }
 }
